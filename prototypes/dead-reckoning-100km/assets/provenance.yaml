@@ -1,0 +1,62 @@
+# Where each file came from, one entry per file. The door brought these files in as they
+# were, so each one's origin is unknown until you say: ai (with tool), you, cc0, licensed.
+# - path: index.html         # relative to this game's folder
+#   sha256: <its hash>       # the bytes it came in with
+#   origin: unknown          # ai | bought | cc0 | you | outsourced | template | plugin | licensed | code | unknown
+- path: .gitignore
+  sha256: 442787ab3b4dcc0aeb55d4d866ec72bcc23b754efde3815e97f598ae79c42ba4
+  origin: unknown
+- path: README.md
+  sha256: e455a215f5965c1bea5835beef5f618d5c4423266c01ef937f3c2aa05b910880
+  origin: unknown
+- path: data/cards.js
+  sha256: 63d5525a2e0ea2483aed57d335816a6eda432bbf247a5cbdf2d69aef7385ab9d
+  origin: unknown
+- path: data/rules.js
+  sha256: eff5535c16b2b6a524bacb813f897cab14066f00c614d9ce4ac111d3c6ab40d1
+  origin: unknown
+- path: data/voyage.js
+  sha256: 5b5277cc9f64396ec40959c51f8bfd2a3cada9dc943656a8d11ed38a4156550d
+  origin: unknown
+- path: dr-cards.json
+  sha256: 1fb4633533be4924a35c9d6066067664399d089e6cff90eaa3549deb42672c95
+  origin: unknown
+- path: index.html
+  sha256: 2d3a41068baa9325f639df96456c8138c45131db10d8602730898625dc7f5e6f
+  origin: unknown
+- path: src/ai.js
+  sha256: 044a8776435b805f66005c9fa04827cf7cc29cc6acff333008b043561b6bb5a0
+  origin: unknown
+- path: src/art.js
+  sha256: 236e2913ca31efab117bbfc82cfd67ca993cde778f91a80b04bd198d26a9d816
+  origin: unknown
+- path: src/battle.js
+  sha256: 562850d768e8f1317a3d43e05bdd90b39853218e21c1c88042b9121775df3811
+  origin: unknown
+- path: src/icons.js
+  sha256: deac6243caba3523cba8363e2e214385491813f58295fc686c7054d2b36295ff
+  origin: unknown
+- path: src/scene.js
+  sha256: e6dad4508c9389d772bf3520c1565de04b1693f13436bdad6f5b3f1391b1e0ce
+  origin: unknown
+- path: src/ui.js
+  sha256: d5d0de23c0a1ceef57029e65eea9ffc6826638c8df040bfb237ba9a311d25af7
+  origin: unknown
+- path: src/voyage.js
+  sha256: c01414cd9ed4902b27093c010ee2648c30c770de61b9609ba471c12258bec6cc
+  origin: unknown
+- path: style.css
+  sha256: 3c3dc752dc1383291d0a181d8c8ff844acb9500bf44e49a6913e069fd46c3d99
+  origin: unknown
+- path: 기획/01_기획서.md
+  sha256: cbc1c47d6a50de355736d8a8e89ca7923828db12e78391ccfbf639ed2eb3b64b
+  origin: unknown
+- path: 기획/02_항해와_이야기.md
+  sha256: f5c9ff5adc68a05067c173f5cf211400c8b977550667e4fdf94d1e68262af88f
+  origin: unknown
+- path: 기획/03_끝없는_항해.md
+  sha256: cf2e4e2904aa2d74428863c19ce28f68bf963afadac58cdd9fab9b02b300c433
+  origin: unknown
+- path: 카드 목록.html
+  sha256: 7af83f65993662f6d4977472ee0ff4042e3f4c5ad8419f664ddf23f0dadc6971
+  origin: unknown

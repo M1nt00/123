@@ -1,0 +1,2 @@
+start	ArrowDown Enter
+play	Digit1 wait:0.5 Digit2 wait:0.5 Space wait:2 Space wait:1 Space wait:1 Space wait:1

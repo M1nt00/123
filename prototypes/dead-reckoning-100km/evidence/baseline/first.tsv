@@ -1,0 +1,39 @@
+browser	/usr/bin/google-chrome
+time	2026-11-12 03:28:18
+render	cheap
+hookless	no window.game: the game is stepped through its own loop
+ua	HeadlessChrome/153.0.0.0
+scene	0	hookless
+state	0	hookless	{}
+state	60	hookless	{}
+pressure	none	the game set no number state.margin in play
+steptime	60	10.083	578.100
+frametime	none	no frame was drawn in play
+done	60	hookless	stop	1.0	1352
+measured	1280x577
+text	hookless	canvas	982,289,988,298	20.6	16.48	inside	5
+text	hookless	canvas	1048,212,1060,221	20.6	15.96	inside	10
+text	hookless	html	122,284,136,298	20.6	11.72	inside	01
+text	hookless	html	150,274,278,299	39.3	20.59	inside	끝없는 항해
+text	hookless	html	292,283,438,297	22.5	5.99	inside	로그라이트 · 격침될 때까지
+text	hookless	html	112,342,126,356	20.6	5.99	inside	02
+text	hookless	html	140,332,244,357	39.3	13.54	inside	연습 전투
+text	hookless	html	258,341,392,355	22.5	5.99	inside	순찰 구축함 VEX-7과 1:1
+text	hookless	html	112,400,126,414	20.6	5.99	inside	03
+text	hookless	html	140,390,188,415	39.3	13.54	inside	규칙
+text	hookless	html	112,458,126,472	20.6	5.99	inside	04
+text	hookless	html	140,448,244,473	39.3	13.54	inside	카드 도감
+text	hookless	html	258,457,433,471	22.5	5.99	inside	모든 카드 · 효과 · 어느 덱에 있나
+text	hookless	html	112,516,126,530	20.6	5.99	inside	05
+text	hookless	html	140,506,268,531	39.3	2.71	inside	스토리 항해
+text	hookless	html	289,515,328,529	22.5	2.71	inside	준비 중
+text	hookless	html	112,577,119,591	20.6	5.99	outside	T
+text	hookless	html	133,573,184,590	28.1	5.99	outside	시험장
+text	hookless	html	198,576,358,590	22.5	5.99	outside	원하는 덱 · 적 · 상황으로 시험
+text	hookless	html	112,635,119,649	20.6	5.99	outside	T
+text	hookless	html	133,631,228,648	28.1	5.99	outside	깊이 10부터
+text	hookless	html	242,634,394,648	22.5	5.99	outside	테스트 · 앞 구역을 깬 상태로
+text	hookless	html	90,538,302,550	20.6	5.99	inside	v0.4 · 마우스 또는 ↑ ↓ · Enter
+screen	60	hookless	583b74b3	drawn
+uncaught	0
+shot	-	0
