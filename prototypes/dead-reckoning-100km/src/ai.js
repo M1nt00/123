@@ -2,11 +2,12 @@
 // 방법: 손패로 만들 수 있는 계획을 전부 따져 보고 점수가 가장 높은 것 + 약간의 무작위
 'use strict';
 
-function aiPlan(B) {
+// pred (선택): 상대 이동을 이 값으로 예측 — 밸런스 시뮬레이션(tools/balance-sim.js)이 '읽는 사람'을 흉내 낼 때만 씀. 게임은 넘기지 않음
+function aiPlan(B, pred) {
   const E = B.enemy, P = B.player;
   if (E.dummy) return { items: [], cool: 0, engine: 0, od: false };   // 시험장 표적 더미: 아무것도 안 함
   // 플레이어 이동 예측: 지난 턴 이동을 반쯤 믿는다 (사람은 같은 행동을 반복하는 경향)
-  const predMove = Math.random() < 0.5 ? P.lastMove : 0;
+  const predMove = pred !== undefined ? pred : Math.random() < 0.5 ? P.lastMove : 0;
   // 지원 카드 (드로우): 연료가 넉넉하면 먼저 써서 손패를 늘림 — 상대에게 안 보임
   for (let i = E.hand.length - 1; i >= 0; i--) {
     const c = DATA.cards[E.hand[i]];
@@ -79,15 +80,16 @@ function aiPlan(B) {
 
       const d = clamp(B.distance - (s2.move + predMove) * R.step, 0, R.maxDistance);
       let score = 0, wdmg = 0;
+      const ctx = { move: s2.move, others: items.filter((x) => DATA.cards[x.id].type === 'weapon').length - 1 };
       for (const it of items) {
         const c = DATA.cards[it.id];
-        if (c.type === 'weapon') wdmg += c.torpedo ? weaponDmg(c, clamp(d - predMove * 100, 0, 2000), od) * 0.7
-          : weaponDmg(c, isPre(c) ? B.distance : d, od, isPre(c) ? 0 : predMove);   // 선제: 기동 전 거리 · 추적 무기: 예상 이동
+        if (c.type === 'weapon') wdmg += c.torpedo ? shotDmg(E, c, clamp(d - predMove * 100, 0, 2000), od, undefined, undefined, ctx) * 0.7
+          : shotDmg(E, c, isPre(c) ? B.distance : d, od, isPre(c) ? 0 : predMove, undefined, isPre(c) ? { move: 0, others: ctx.others } : ctx);   // 선제: 기동 전 거리 · 추적 무기: 예상 이동
         if (c.charge) wdmg += c.charge.dmg * 0.45;                       // 초고열 응집: 늦게 오는 큰 한 방
         if (c.inflict && weaponDmg(c, d, od)) score += 5 * Object.values(c.inflict).reduce((a, b) => a + b, 0);   // 상태이상
         if (c.evadeIfMoved && s2.move) score += expectedIncoming * c.evadeIfMoved * 0.8;   // 회피 기동: 움직이면 성공
         if (c.zone) score += myField ? 4 : 12;                             // 전장: 앞으로 여러 턴 피해
-        if (c.shield) score += Math.min(c.shield, expectedIncoming) * 0.8;
+        if (c.shield) score += Math.min(c.shieldIfStill && !s2.move ? c.shieldIfStill : c.shield, expectedIncoming) * 0.8;
         if (c.shieldNext) score += c.shieldNext * 0.4;                    // 재생 보호막
         if (c.dmgReduce) score += expectedIncoming * c.dmgReduce * 0.8;   // 물러나기
         if (c.pointDefense && B.torpedoes.some((t) => t.owner === P)) score += 12;

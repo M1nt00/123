@@ -179,6 +179,39 @@ DATA.cards = {
     desc: '폭 300km 구역 · 3턴. 다음 턴부터, 구역 안에서 기동을 마친 함선은 턴마다 피해 18',
   },
 
+  // ── 덱 방향과 맞물리는 카드 (2026-11-12 · 항해 보상으로만 나옴 · 적은 쓰지 않음) ──
+  //   moveBonus { min, dmg } = 이번 턴 내가 min×100km 이상 움직였으면 피해가 dmg   (기동 덱)
+  //   heatScale n            = 내 열 n마다 피해 +1                                 (과열 덱)
+  //   perWeapon n            = 이번 턴 함께 쏘는 다른 무기 1장마다 피해 +n          (무기를 몰아 쓰는 덱)
+  //   shieldIfStill n        = 이번 턴 움직이지 않았으면 보호막이 n                 (제자리 저격 덱)
+  pursuit: {
+    name: '추격 사격', type: 'weapon', cost: 1, heat: 5,
+    dmg: [[1000, 5], [2000, 0]],
+    moveBonus: { min: 2, dmg: 14 },
+    text: '1,000km 이내의 적에게 5의 피해를 입힙니다. 이번 턴에 내가 200km 이상 움직였다면 14의 피해를 입힙니다.',
+    desc: '1,000km 이내 5. 이번 턴 내가 200km 이상 움직였으면 14',
+  },
+  heatCannon: {
+    name: '과열 방출포', type: 'weapon', cost: 2, heat: -20,
+    dmg: [[900, 6], [2000, 0]],
+    heatScale: 5,
+    text: '900km 이내의 적에게 6 + (내 열 5마다 1)의 피해를 입히고, 내 열을 20 내립니다.',
+    desc: '900km 이내 6 + 내 열 5마다 1. 쏘면 열 −20',
+  },
+  focusFire: {
+    name: '집중 포화', type: 'weapon', cost: 2, heat: 10,
+    dmg: [[300, 3], [1200, 7], [2000, 0]],
+    perWeapon: 4,
+    text: '400~1,200km의 적에게 7의 피해를 입힙니다. 이번 턴에 함께 쏘는 다른 무기 1장마다 피해가 4 늘어납니다.',
+    desc: '400~1,200km 7 (그 안쪽 3). 함께 쏘는 다른 무기 1장마다 +4',
+  },
+  bracedArmor: {
+    name: '고정 방벽', type: 'defense', cost: 1, heat: 0,
+    shield: 6, shieldIfStill: 14,
+    text: '이번 턴에 보호막 6을 얻습니다. 이번 턴에 움직이지 않았다면 보호막 14를 얻습니다.',
+    desc: '이번 턴 보호막 +6. 움직이지 않았으면 +14',
+  },
+
   // ── 지원 (계획 중에 바로 사용 · 상대에게 보이지 않음) ──
   draw: {
     name: '드로우', type: 'support', cost: 1, heat: 0,

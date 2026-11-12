@@ -54,7 +54,7 @@ function expectedDmg(P) {
   for (const it of P.plan.items) {
     const c = DATA.cards[it.id];
     if (c.type !== 'weapon') continue;
-    if (c.torpedo) torps++; else if (!c.charge) t += shotDmg(P, c, isPre(c) ? B.distance : d, sum.od);   // 선제: 기동 전 거리
+    if (c.torpedo) torps++; else if (!c.charge) t += shotDmg(P, c, isPre(c) ? B.distance : d, sum.od, undefined, undefined, shotCtx(P, P.plan, 1));   // 선제: 기동 전 거리
   }
   return { dmg: t, torps, d };
 }
@@ -624,6 +624,7 @@ function aimInfo(id, hand) {
   if (c.dmgReduce) return { text: `${c.name} · 100km 후진 · 받는 피해 −${Math.round(c.dmgReduce * 100)}%`, color: '#9DB8FF' };
   if (c.type !== 'weapon') {
     if (c.shieldNext) return { text: `${c.name} · 보호막 +${c.shield} (다음 턴 +${c.shieldNext})`, color: '#9DB8FF' };
+    if (c.shieldIfStill) return { text: `${c.name} · 보호막 +${c.shield} (움직이지 않으면 +${c.shieldIfStill})`, color: '#9DB8FF' };
     if (c.shield) return { text: `${c.name} · 보호막 +${c.shield}`, color: '#9DB8FF' };
     if (c.pointDefense) return { text: `${c.name} · 날아오는 어뢰 격추`, color: '#9DB8FF' };
     return { text: `${c.name} · ${c.move > 0 ? c.move * 100 + 'km 전진' : -c.move * 100 + 'km 후진'}`, color: '#7CFF9B' };
@@ -634,7 +635,7 @@ function aimInfo(id, hand) {
   const d = isPre(c) ? B.distance : clamp(B.distance - sum.move * 100, 0, DATA.rules.maxDistance);   // 선제: 기동 전 거리
   if (c.charge) return { text: `${c.name} → ${c.charge.turns}턴 뒤 ${c.charge.dmg} 피해${c.charge.enemyHeat ? ` · 상대 열 +${c.charge.enemyHeat}` : ''}`, sub: `거리 무관 · ${c.charge.turns}턴 동안 매 턴 열 +${c.charge.heat} · 최대 연료 −${c.charge.fuel}`, color: '#FFC24A' };
   if (c.torpedo) return { text: `어뢰 발사 · 다음 턴 도착`, sub: `그때 500~900km면 ${shotDmg(P, c, 700, sum.od)} · 지금 ${fmtM(d)}`, color: '#FFB547' };
-  const dmg = shotDmg(P, c, d, sum.od), eff = efficiency(c, d);
+  const dmg = shotDmg(P, c, d, sum.od, undefined, undefined, shotCtx(P, plan, 1)), eff = efficiency(c, d);
   const tag = eff >= 0.9 ? '강한 거리' : eff >= 0.6 ? '쓸 만한 거리' : eff > 0 ? '약한 거리' : '사거리 밖';
   const color = eff >= 0.9 ? '#7CFF9B' : eff >= 0.6 ? '#FFD166' : eff > 0 ? '#FFB547' : '#FF5A5F';
   return { text: `${c.name} → ${dmg} 피해 · ${tag}`, sub: isPre(c) ? `선제 — 기동 전 거리 ${fmtM(d)}로 판정` : `${sum.move ? '내 이동 후 ' : ''}${fmtM(d)} (적이 가만히 있다면)`, color };

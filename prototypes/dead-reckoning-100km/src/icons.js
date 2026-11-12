@@ -31,6 +31,10 @@ const ICON_PATHS = {
   timeDelay: '<circle cx="24" cy="26" r="15"/><path d="M24 17v9l6 4"/><path d="M18 6h12"/><path d="M38 12l3-3"/>',
   draw: '<rect x="12" y="10" width="18" height="26" rx="3"/><rect x="20" y="14" width="18" height="26" rx="3"/><path d="M29 22v10M24 27h10"/>',
   overdrive: '<path d="M27 4L11 27h11l-3 17 17-24H25z" fill="currentColor" stroke="none"/>',
+  pursuit: '<path d="M5 14h9M5 34h9" stroke-dasharray="2 3"/><path d="M5 24h21"/><path d="M20 16l8 8-8 8"/><circle cx="38" cy="24" r="5"/><circle cx="38" cy="24" r="1.6" fill="currentColor"/>',
+  heatCannon: '<path d="M5 18h20v12H5z"/><path d="M25 21h9v6h-9z"/><path d="M39 15c3 3 3 6 0 9s-3 6 0 9"/><path d="M10 13c2-3 0-4 2-7M18 13c2-3 0-4 2-7"/>',
+  focusFire: '<path d="M6 9l27 14M6 24h27M6 39l27-14"/><circle cx="39" cy="24" r="4" fill="currentColor"/>',
+  bracedArmor: '<path d="M24 5l16 9v20l-16 9-16-9V14z"/><path d="M15 19h18M15 29h18"/><path d="M24 12v24"/>',
 };
 
 function iconSVG(id, size = 44) {

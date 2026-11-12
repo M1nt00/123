@@ -16,7 +16,9 @@ DATA.voyage = {
   cardPool: { laser: 3, railgun: 2, torpedo: 2, scatter: 2, ram: 1, shield: 2, heavyShield: 2, pointDefense: 1, burn: 1, retro: 1,
     regenShield: 2, fallback: 1, solarLance: 1, boarding: 1, coolCatalyst: 2, ventPurge: 1,
     // 2026-10-01 새 카드
-    particleCutter: 1, phaseLaser: 1, orbitShot: 2, guidedMissile: 2, evasive: 1, inertia: 1, timeDelay: 1, draw: 2, asteroids: 1 },
+    particleCutter: 1, phaseLaser: 1, orbitShot: 2, guidedMissile: 2, evasive: 1, inertia: 1, timeDelay: 1, draw: 2, asteroids: 1,
+    // 2026-11-12 덱 방향과 맞물리는 카드
+    pursuit: 2, heatCannon: 1, focusFire: 2, bracedArmor: 2 },
 
   // 특별한 카드 풀 (사건 보상)
   pools: {
@@ -226,6 +228,16 @@ Object.assign(DATA.ships, {
   },
 });
 
+// ── 끝없는 항해 2구역 보스 (2026-11-12) ── 그림은 연합 강습함 것을 씀 (skin)
+Object.assign(DATA.ships, {
+  bulwark: {
+    name: '중순양함 「성벽」', hull: 105, reactor: 5, cooling: 12, prefer: 700, flagship: true, skin: 'allyAssault',
+    doctrine: '중거리 농성', doctrineDesc: '두꺼운 보호막 뒤에서 레이저와 어뢰로 깎는다. 700km를 지킨다',
+    deck: ['heavyShield', 'heavyShield', 'regenShield', 'regenShield', 'shield', 'pointDefense', 'laser', 'laser',
+      'laser', 'torpedo', 'torpedo', 'orbitShot', 'coolCatalyst', 'retro', 'burn'],
+  },
+});
+
 // ─────────────────────────────────────────────
 //  끝없는 항해 (로그라이트)  — 난이도는 여기 숫자로 조절
 //  깊이 = 지금까지 점프한 수 (1부터). 구역마다 점프 4번 + 보스
@@ -237,13 +249,13 @@ DATA.endless = {
   tier1: ['scav', 'torpBoat'],       // 약한 적
   tier2: ['vex', 'allyPatrol'],      // 보통 적
   elites: ['raider', 'allyAssault'], // 정예
-  bosses: ['junkKing', 'resolute'],  // 보스 (구역마다 번갈아)
+  bosses: ['junkKing', 'bulwark', 'resolute'],  // 보스 (구역 차례대로. 그 뒤는 다시 처음부터)
   // 깊이에 따라 나오는 일반 적: 깊이 ≤ tier1Until → 약한 적만, ≤ mixUntil → 섞여서, 그 뒤 → 보통 적 위주
   tier1Until: 3, mixUntil: 8,
   // 적 선체 배율 (일반 · 정예): base + perDepth × (깊이 − 1)
   hullBase: 0.55, hullPerDepth: 0.03,
   // 보스 선체 배율: base + perSector × (구역 − 1)
-  bossBase: 0.75, bossPerSector: 0.15,
+  bossBase: 0.75, bossPerSector: 0.1,
   // 깊이 N마다 적 덱에 강화 카드 1장씩 추가
   extraCardEvery: 5,
   extraCards: ['heavyShield', 'railgun', 'laser', 'regenShield', 'torpedo', 'scatter'],

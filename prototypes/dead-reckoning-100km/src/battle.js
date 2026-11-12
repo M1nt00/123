@@ -57,7 +57,13 @@ function perkMult(s, d, notes) {
   return m;
 }
 // 거리에 따라 피해가 달라지는 무기인가 (어디서든 같은 무기는 '예측 적중'을 따지지 않음)
-function isBanded(card) { return !!card.dmg && card.dmg.length > 1; }
+//   = 피해 표에 서로 다른 (0이 아닌) 값이 둘 이상
+function isBanded(card) { return !!card.dmg && new Set(card.dmg.map((x) => x[1]).filter((v) => v > 0)).size > 1; }
+// 무기 피해에 쓰이는 이번 턴 사정: 내가 움직이는 칸 수 · 함께 쏘는 다른 무기 수 (self = 그 카드 자신이 계획에 들어 있으면 1)
+function shotCtx(s, plan, self) {
+  const p = plan || s.plan || { items: [], cool: 0 };
+  return { move: planSummary(s, p).move, others: Math.max(0, p.items.filter((it) => DATA.cards[it.id].type === 'weapon').length - (self || 0)) };
+}
 
 // ── 상태 (버프 · 디버프) — 종류는 data/rules.js의 DATA.status ──
 function statusOf(s, key) { return s.st[key] || 0; }
@@ -220,9 +226,16 @@ function weaponDmg(card, d, overdrive, targetMove) {
 }
 
 // 개조까지 반영한 무기 피해 (s = 쏘는 함선). 화면의 예상 피해도 이 함수를 씀
-function shotDmg(s, card, d, overdrive, targetMove, notes) {
-  const base = weaponDmg(card, d, overdrive, targetMove);
-  return base ? Math.round(base * perkMult(s, d, notes)) : 0;
+//   ctx = { move: 이번 턴 내가 움직이는 칸 수, others: 함께 쏘는 다른 무기 수 } — 없으면 지금 계획에서 셈
+function shotDmg(s, card, d, overdrive, targetMove, notes, ctx) {
+  let base = weaponDmg(card, d, false, targetMove);
+  if (!base) return 0;
+  const c = ctx || shotCtx(s);
+  if (card.moveBonus && Math.abs(c.move) >= card.moveBonus.min) base = card.moveBonus.dmg;   // 추격 사격
+  if (card.heatScale) base += Math.floor(s.heat / card.heatScale);                              // 과열 방출포
+  if (card.perWeapon) base += card.perWeapon * c.others;                                        // 집중 포화
+  base = Math.round(base * perkMult(s, d, notes));
+  return overdrive ? Math.round(base * (1 + R().overdriveBonus)) : base;
 }
 
 // 거리 효율: 이 거리에서의 피해 ÷ 그 무기의 최대 피해 (예측 판정 표시용)
@@ -272,7 +285,8 @@ function resolveSteps(B) {
   // 방어 카드 켜기 (선제 단계 · 방어 단계 공통). 보호막은 더해짐 (턴 끝까지 유지)
   const defend = (s, cards, withRegen) => {
     const mult = s.heat >= R().warnHeat ? R().warnShieldMult : 1;
-    const add = Math.round((cards.reduce((t, c) => t + (c.shield || 0), 0) + (withRegen ? s.regen || 0 : 0)) * mult);
+    // 고정 방벽: 이번 턴 움직이지 않았으면 더 큰 보호막
+    const add = Math.round((cards.reduce((t, c) => t + (c.shieldIfStill && s.lastMove === 0 ? c.shieldIfStill : c.shield || 0), 0) + (withRegen ? s.regen || 0 : 0)) * mult);
     s.shield += add;
     // 회피 기동: 이번 턴 내가 움직였으면
     const moved = s.lastMove !== 0;
@@ -306,7 +320,8 @@ function resolveSteps(B) {
     }
     const tm = isPre(c) ? 0 : other(s).lastMove;            // 상대가 이번 턴 움직인 만큼 (선제는 아직 안 움직임)
     const notes = new Set();
-    const dmg = shotDmg(s, c, d, sums.get(s).od, tm, notes);
+    const dmg = shotDmg(s, c, d, sums.get(s).od, tm, notes,
+      { move: isPre(c) ? 0 : s.lastMove, others: itemsOf(s, (x) => x.type === 'weapon').length - 1 });
     const e = { kind: 'shot', from: side(s), card: it.id, dmg, eff: efficiency(c, d), banded: isBanded(c), shield: 0, hull: 0 };
     if (dmg) for (const n of notes) perkNote(s, n);
     // 정밀 사격 통제: 거리 무기를 제 거리에서 맞히면 다음 턴 손패 +

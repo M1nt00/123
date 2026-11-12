@@ -472,7 +472,8 @@ const Scene = {
 
   // 전투 상태에서 보이는 값 맞추기 (턴 시작 등)
   sync(B) {
-    this.skin.enemy = Art.design[B.enemy.key] ? B.enemy.key : 'vex';
+    const sk = (DATA.ships[B.enemy.key] || {}).skin || B.enemy.key;   // skin: 다른 함선의 그림을 빌려 씀
+    this.skin.enemy = Art.design[sk] ? sk : 'vex';
     if (B.xE !== undefined) { this.xP = B.xP; this.xE = B.xE; }
     for (const side of ['player', 'enemy']) {
       const s = B[side], v = this.ships[side];
