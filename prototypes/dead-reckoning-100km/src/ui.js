@@ -164,8 +164,33 @@ function renderHud() {
   statUpdate('enemy');
   $('steps').innerHTML = ['특수능력', '전장', '시스템', '선제', '기동', '방어', '공격', '열'].map((n, i) => `<span class="${stepName === n ? 'on' : ''}">${'①②③④⑤⑥⑦⑧'[i]} ${n}</span>`).join('');
   $('distLbl').innerHTML = `거리 <b>${fmtM(B.distance)}</b> · ${bandOf(B.distance)} <small>(적 함선에 마우스 → 조준경)</small>`;
+  // 적 의도 (계획 중에만 · 시험장과 표적 더미는 표시 안 함)
+  const it = $('intent');
+  if (it) {
+    if (B.phase === 'plan' && !resolving && !B.sandbox && !B.enemy.dummy && !onTitle) {
+      const I = enemyIntent();
+      const dir = I.dir > 0 ? '<b class="in">▶◀ 접근</b>' : I.dir < 0 ? '<b class="out">◀▶ 이탈</b>' : '<b>■ 거리 유지</b>';
+      const cards = I.hidden ? '<span class="fogged">안개 — 무장 신호 불명</span>'
+        : `무기 <b>${I.n.weapon}</b> · 방어 <b>${I.n.defense}</b>${I.n.other ? ` · 기타 <b>${I.n.other}</b>` : ''}`;
+      it.innerHTML = `<small>적 의도</small>${dir}<i>·</i>${cards}`;
+      it.classList.remove('hidden');
+    } else it.classList.add('hidden');
+  }
   $('torps').innerHTML = B.torpedoes.map((t) => `<span class="${t.owner === P ? 'me' : 'foe'}">${t.owner === P ? '▶ 내 어뢰' : '◀ 적 어뢰'} 비행 중</span>`).join(' · ');
 }
+// ── 적 의도: 적은 턴이 시작될 때 계획을 정해 둔다 (내 계획은 보지 않음). 그 일부를 단서로 보여 준다 ──
+//   보이는 것: 기동 방향 (접근 · 유지 · 이탈)과 낼 카드의 종류별 수. 얼마나 움직일지 · 어떤 카드인지는 숨김
+//   안개 성운에서는 기동 방향만 보인다
+function enemyIntent() {
+  const E = B.enemy;
+  if (B.intentTurn !== B.turn) { B.intentTurn = B.turn; E.plan = aiPlan(B); }
+  const plan = E.skip ? { items: [], cool: 0, engine: E.plan.engine || 0, od: false } : E.plan;
+  const move = planSummary(E, plan).move;
+  const n = { weapon: 0, defense: 0, other: 0 };
+  for (const x of plan.items) { const t = DATA.cards[x.id].type; if (t === 'weapon') n.weapon++; else if (t === 'defense') n.defense++; else if (t !== 'move') n.other++; }
+  return { dir: move > 0 ? 1 : move < 0 ? -1 : 0, n, hidden: !!B.fog };
+}
+
 // 연출에서 맞는 순간 → 계기판 갱신
 Scene.onStat = () => { if (B) renderHud(); };
 
@@ -767,7 +792,8 @@ async function decide() {
   const P = B.player;
   if (B.phase !== 'plan' || resolving || !planSummary(P, P.plan).ok) return;
   if (drag) endAim(drag, null, null);
-  B.enemy.plan = aiPlan(B);
+  // 적 계획은 턴 시작에 정해 둔 것 (적 의도로 일부 공개됨). 시험장은 도중에 상황을 바꿀 수 있어서 지금 정함
+  if (B.sandbox || B.intentTurn !== B.turn) { B.enemy.plan = aiPlan(B); B.intentTurn = B.turn; }
   resolving = true;
   $('turnSum').classList.add('hidden');
   const turn = B.turn, allEv = [];
@@ -877,7 +903,9 @@ function showHelp() {
       <li><b>지원 카드 (노란색)</b>: 내 함선에 놓는 즉시 사용되고, 상대에게 공개되지 않는다.</li>
       <li><b>전장 카드 (황토색)</b>: 우주의 한 구역에 깔린다 (위치는 계획 줄의 ◀ ▶). <b>다음 턴부터</b> 적용 — 구역 안에서 기동을 마친 함선은 (나도) 피해. 지나가기만 하면 영향 없음. 1인당 하나.</li>
       <li>공격은 <b>일제 사격</b> 단위: 도착 어뢰 → (내 1발째 + 적 1발째) → (내 2발째 + 적 2발째) … <b>한쪽이 0이 되는 순간 끝</b> — 남은 사격은 없다. 같은 일제 사격에서 <b>둘 다 격침</b>되면 무승부 (항해에선 패배).</li>
-      <li>단축키: 1~5 카드 집기 (목표 클릭으로 확정, Esc 취소) · ←/→ 기본 엔진 (Shift = 500km) · O 오버드라이브 · Space 결정 · L 기록 · H 규칙</li>
+      <li><b>적 의도</b> (화면 위 가운데): 적은 턴이 시작될 때 계획을 정해 둔다. 그중 <b>기동 방향</b>(접근 · 유지 · 이탈)과 <b>낼 카드 수</b>가 보인다. 얼마나 움직일지, 어떤 카드인지는 교리와 기동 기록으로 읽어야 한다. 안개 성운에서는 방향만 보인다.</li>
+      <li><b>항해</b>: 구역마다 점프 네 번 뒤 보스. <b>세 구역의 보스를 모두 잡으면 항로 돌파</b>. <b>개조</b>는 싸우는 방식을 바꾼다 — 근거리 · 중거리 · 원거리 · 기동 · 과열 · 읽기 가운데 덱에 맞는 것을 고르라.</li>
+      <li>단축키: 1~5 카드 집기 (목표 클릭으로 확정, Esc 취소) · ←/→ 기본 엔진 (Shift = 500km) · O 오버드라이브 · Space 결정 · L 기록 · H 규칙 · M 소리</li>
     </ul>
     <button id="closeHelp">시작</button></div>`;
   $('overlay').classList.remove('hidden');
@@ -1081,7 +1109,13 @@ const titleItems = () => [...document.querySelectorAll('.tMenu button')].filter(
 function titleMark() { titleItems().forEach((b, i) => b.classList.toggle('sel', i === titleSel)); }
 function titleMove(d) { const n = titleItems().length; titleSel = (titleSel + d + n) % n; titleMark(); }
 function titlePick(m) {
-  if (m === 'practice') fadeTo(() => { hideTitle(); start(); B.introShown = true; showBanner(); });
+  if (m === 'practice') fadeTo(() => {
+    hideTitle();
+    const coach = typeof Coach !== 'undefined' && Coach.wanted();   // 처음이면 안내와 함께, 쉬운 적과
+    start(coach ? DATA.rules.coachEnemy : undefined);
+    B.introShown = true; showBanner();
+    if (coach) Coach.start();
+  });
   if (m === 'voyage') fadeTo(() => { hideTitle(); Voyage.start(); });
   if (m === 'skip1') fadeTo(() => { hideTitle(); Voyage.startAt(1); });
   if (m === 'endless') fadeTo(() => { hideTitle(); Voyage.startEndless(); });
@@ -1103,7 +1137,13 @@ function showTitle() {
   let clears = 0; try { clears = +localStorage.getItem('dr-clears') || 0; } catch (e) {}
   const goal = DATA.endless.winSector ? `구역 ${DATA.endless.winSector}곳을 돌파하라` : '로그라이트 · 격침될 때까지';
   $('bestDepth').textContent = best ? `${clears ? `돌파 ${clears}회 · ` : ''}최고 깊이 ${best}` : goal;
-  titleSel = 0; titleMark();
+  titleFirstTime();
+}
+// 처음이면 (안내를 아직 안 봤으면) 연습 전투를 먼저 가리킨다. coach.js가 불러와진 뒤에도 한 번 불린다
+function titleFirstTime() {
+  const coach = typeof Coach !== 'undefined' && Coach.wanted(), pr = document.querySelector('.tMenu [data-m="practice"]');
+  if (pr) pr.querySelector('small').textContent = coach ? '처음이라면 여기부터 — 안내와 함께 한 판' : '순찰 구축함 VEX-7과 1:1';
+  titleSel = coach && pr ? Math.max(0, titleItems().indexOf(pr)) : 0; titleMark();
 }
 function hideTitle() {
   onTitle = false;
