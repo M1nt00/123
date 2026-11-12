@@ -1137,7 +1137,8 @@ function showTitle() {
   let best = 0; try { best = +localStorage.getItem('dr-best-depth') || 0; } catch (e) {}
   let clears = 0; try { clears = +localStorage.getItem('dr-clears') || 0; } catch (e) {}
   const goal = DATA.endless.winSector ? `구역 ${DATA.endless.winSector}곳을 돌파하라` : '로그라이트 · 격침될 때까지';
-  $('bestDepth').textContent = best ? `${clears ? `돌파 ${clears}회 · ` : ''}최고 깊이 ${best}` : goal;
+  const xp = typeof Meta !== 'undefined' ? Meta.xp() : 0;
+  $('bestDepth').textContent = best ? `${clears ? `돌파 ${clears}회 · ` : ''}최고 깊이 ${best}${xp ? ` · 항해 기록 ${xp}` : ''}` : goal;
   titleFirstTime();
 }
 // 처음이면 (안내를 아직 안 봤으면) 연습 전투를 먼저 가리킨다. coach.js가 불러와진 뒤에도 한 번 불린다

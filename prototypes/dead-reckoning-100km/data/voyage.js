@@ -265,3 +265,30 @@ DATA.endless = {
   themes: [null, 'fog'],
   themeNames: ['표류 구역', '안개 성운'],
 };
+
+// ─────────────────────────────────────────────
+//  항해 기록 (메타 진행): 판이 끝나도 남는 것. 숫자 · 해금 순서는 여기서 (규칙은 src/meta.js)
+//  기록 = 판이 끝날 때 얻는 점수: 도달한 깊이 × xpPerDepth, 항로를 돌파하면 + xpClear
+//  기록 합계가 at 이상이 되면 해금. 잠긴 카드는 항해 보상에 나오지 않는다
+// ─────────────────────────────────────────────
+DATA.meta = {
+  xpPerDepth: 1, xpClear: 10,
+  // 고를 수 있는 함선 (compass는 처음부터). deck = 시작 덱 (null이면 DATA.starterDeck), hull null이면 DATA.voyage.playerHull
+  ships: {
+    compass: { name: '호위함 「나침반」', role: '균형', desc: '레이저 중심의 고른 덱. 어느 거리로든 갈 수 있다', hull: null, reactor: 5, cooling: 10, deck: null },
+    fang: { name: '돌격함 「송곳니」', role: '근거리', desc: '산탄과 충각으로 파고든다. 선체가 두껍다', hull: 160, reactor: 5, cooling: 10,
+      deck: ['scatter', 'scatter', 'scatter', 'ram', 'laser', 'burn', 'burn', 'shield', 'shield', 'heavyShield'] },
+    libra: { name: '저격함 「천칭」', role: '원거리', desc: '레일건과 후진으로 거리를 벌린다. 선체는 얇고, 빨리 식는다', hull: 115, reactor: 5, cooling: 13,
+      deck: ['railgun', 'railgun', 'laser', 'laser', 'retro', 'retro', 'shield', 'shield', 'pointDefense', 'draw'] },
+  },
+  // kind: card (보상에 나오기 시작) · ship (고를 수 있게 됨) · boon (항해 규칙 하나)
+  unlocks: [
+    { at: 8, kind: 'card', id: 'pursuit' },
+    { at: 18, kind: 'ship', id: 'fang' },
+    { at: 30, kind: 'card', id: 'heatCannon' },
+    { at: 45, kind: 'ship', id: 'libra' },
+    { at: 60, kind: 'card', id: 'focusFire' },
+    { at: 75, kind: 'card', id: 'bracedArmor' },
+    { at: 95, kind: 'boon', id: 'startMod', name: '출항 준비', desc: '항해를 시작할 때 개조 하나를 고른다' },
+  ],
+};

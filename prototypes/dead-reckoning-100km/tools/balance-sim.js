@@ -3,7 +3,8 @@
 // Date: 2026-11-12
 //
 // 밸런스 시뮬레이션: 화면 없이 항해를 여러 판 돌려서 숫자가 어떤지 본다. 게임은 이 파일을 불러오지 않는다.
-//   node tools/balance-sim.js [판 수=300] [읽기 수준=reader|coin|blind]
+//   node tools/balance-sim.js [판 수=300] [읽기 수준=reader|coin|blind] [detail]
+//   환경 변수: SIM_SHIP=compass|fang|libra (함선) · SIM_XP=숫자 (항해 기록 합계 — 그 아래의 해금은 잠긴 채. 기본은 모두 해금)
 //
 // 무엇을 하나: data/*.js 와 src/battle.js · src/ai.js (게임이 쓰는 규칙 그대로)를 불러와서,
 //   적 AI와 같은 두뇌를 내 쪽에 앉히고 (aiPlan을 거울처럼 뒤집어 씀) 끝없는 항해를 흉내 낸다.
@@ -27,6 +28,8 @@ const G = { newBattle: run('newBattle'), aiPlan: run('aiPlan'), resolveSteps: ru
 
 const runs = +process.argv[2] || 300, skill = process.argv[3] || 'reader';
 const rnd = (a) => a[Math.floor(Math.random() * a.length)];
+const shipKey = process.env.SIM_SHIP || 'compass', simXp = process.env.SIM_XP === undefined ? Infinity : +process.env.SIM_XP;
+const lockedId = (id) => DATA.meta.unlocks.some((u) => u.id === id && u.at > simXp);
 
 // 내 쪽 계획: 적 AI의 두뇌를 거울처럼 뒤집어 씀
 function myPlan(B, enemyMove) {
@@ -55,7 +58,7 @@ function battle(enemyKey, ship, hullMult, extraCards) {
 
 function randCards(n) {
   const pool = DATA.voyage.cardPool, total = Object.values(pool).reduce((a, b) => a + b, 0), ids = [];
-  for (let g = 0; ids.length < n && g < 100; g++) { let r = Math.random() * total, id = null; for (const [k, w] of Object.entries(pool)) { r -= w; if (r <= 0) { id = k; break; } } if (id && !ids.includes(id)) ids.push(id); }
+  for (let g = 0; ids.length < n && g < 100; g++) { let r = Math.random() * total, id = null; for (const [k, w] of Object.entries(pool)) { r -= w; if (r <= 0) { id = k; break; } } if (id && !ids.includes(id) && !lockedId(id)) ids.push(id); }
   return ids;
 }
 // 개조 고르기: 3개 중에서. 덱에 그 거리에서 센 무기가 많은 개조를 먼저, 없으면 아무거나
@@ -78,7 +81,9 @@ const reward = (ship, kind, elite) => {
 
 function voyage() {
   const P = DATA.ships.player, VD = DATA.voyage, E = DATA.endless;
-  const ship = { hull: VD.playerHull, maxHull: VD.playerHull, reactor: P.reactor, cooling: P.cooling, deck: DATA.starterDeck.slice(), mods: [] };
+  const S = DATA.meta.ships[shipKey], hull = S.hull || VD.playerHull;
+  const ship = { hull, maxHull: hull, reactor: S.reactor || P.reactor, cooling: S.cooling || P.cooling, deck: (S.deck || DATA.starterDeck).slice(), mods: [] };
+  if (!lockedId('startMod')) pickMod(ship, false);   // 출항 준비
   const per = E.jumpsPerSector + 1, out = { depth: 0, sectors: 0, turns: 0, battles: 0 };
   for (let d = 1; d <= 60; d++) {
     out.depth = d;
@@ -115,7 +120,7 @@ const res = [];
 for (let i = 0; i < runs; i++) res.push(voyage());
 const pct = (f) => (100 * res.filter(f).length / res.length).toFixed(0) + '%';
 const depths = res.map((r) => r.depth).sort((a, b) => a - b);
-console.log(`runs ${runs} · skill ${skill}`);
+console.log(`runs ${runs} · skill ${skill} · ship ${shipKey} · xp ${simXp}`);
 console.log(`boss1 ${pct((r) => r.sectors >= 1)} · boss2 ${pct((r) => r.sectors >= 2)} · clear (boss${DATA.endless.winSector}) ${pct((r) => r.won)}`);
 console.log(`median end depth ${depths[Math.floor(depths.length / 2)]} · turns per battle ${(res.reduce((a, r) => a + r.turns, 0) / res.reduce((a, r) => a + r.battles, 0)).toFixed(1)}`);
 // 어디서 · 누구에게 끝났나 (자세히 보려면 넷째 인자에 detail)

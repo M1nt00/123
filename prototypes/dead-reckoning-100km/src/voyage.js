@@ -25,21 +25,46 @@ const Voyage = {
   // ── 끝없는 항해 (로그라이트) ──
   // 깊이 = 구역 × (점프 4 + 보스 1) + 점프 + 1
   depth() { const V = this.V; return V.ch * (DATA.endless.jumpsPerSector + 1) + V.jump + 1; },
-  startEndless() {
-    const P = DATA.ships.player, VD = DATA.voyage;
+  // shipKey: 고른 함선 (DATA.meta.ships). 없으면: 해금한 함선이 둘 이상일 때 고르는 화면부터
+  startEndless(shipKey) {
+    if (!shipKey && Meta.ships().length > 1) return this.shipPick();
+    const key = shipKey || 'compass', S = DATA.meta.ships[key];
+    const P = DATA.ships.player, VD = DATA.voyage, hull = S.hull || VD.playerHull;
     this.V = {
       endless: true, ch: 0, jump: 0,
-      ship: { hull: VD.playerHull, maxHull: VD.playerHull, reactor: P.reactor, cooling: P.cooling, deck: DATA.starterDeck.slice(), mods: [] },
+      ship: { key, name: S.name, hull, maxHull: hull, reactor: S.reactor || P.reactor, cooling: S.cooling || P.cooling, deck: (S.deck || DATA.starterDeck).slice(), mods: [] },
       dist: VD.startDistance, err: 0.8, kills: 0, battles: 0,
       usedEvents: [], routes: null,
     };
     this.story('끝없는 항해', '정적 이후 — 끝이 없는 추측항법',
       ['항법 신호가 꺼진 성계.', '나침반은 좌표 없이 점프를 거듭한다.', '깊이 들어갈수록 적은 강해진다.', DATA.endless.winSector ? `구역 ${DATA.endless.winSector}곳의 주인을 모두 꺾으면 — 항로 돌파.` : '얼마나 멀리 갈 수 있을까.'],
-      () => this.say('항해장 세라입니다. 구역마다 점프 네 번, 그리고 그 구역의 주인이 기다립니다. …가 보죠.', () => this.routes()));
+      () => this.say('항해장 세라입니다. 구역마다 점프 네 번, 그리고 그 구역의 주인이 기다립니다. …가 보죠.',
+        // 출항 준비 (해금): 시작할 때 개조 하나
+        () => (Meta.has('startMod') && !this.V.test ? this.modPick('출항 준비 — 개조 하나를 싣는다', () => this.routes(), false) : this.routes())));
+  },
+  // 함선 고르기 (해금한 함선이 둘 이상일 때)
+  shipPick() {
+    const xp = Meta.xp(), all = Object.entries(DATA.meta.ships), open = all.filter(([k]) => Meta.has(k));
+    const at = (k) => (DATA.meta.unlocks.find((u) => u.id === k) || {}).at;
+    this.V = null;
+    this.show(`<div class="vHead"><div class="vCh">출항 — 함선을 고른다</div></div>
+      <div class="vStatus"><span>항해 기록 <b>${xp}</b></span></div>
+      <div class="vRoutes">${all.map(([k, s]) => {
+        const i = open.findIndex(([o]) => o === k), deck = s.deck || DATA.starterDeck, n = {};
+        for (const id of deck) n[DATA.cards[id].name] = (n[DATA.cards[id].name] || 0) + 1;
+        const cards = Object.entries(n).map(([nm, c]) => (c > 1 ? `${nm} ×${c}` : nm)).join(' · ');
+        return i >= 0
+          ? `<div class="vRoute t-dock" data-k="${k}" style="animation-delay:${i * 0.08}s"><div class="vrKey">${i + 1}</div><div class="vrType">${s.role} 덱</div><div class="vrEnemy">${s.name}</div>
+              <div class="vrDesc">${s.desc}</div><div class="vrDoc">선체 <b>${s.hull || DATA.voyage.playerHull}</b> · 냉각 <b>${s.cooling}</b></div><div class="vrDesc vrDeck">${cards}</div></div>`
+          : `<div class="vRoute t-dock vLocked"><div class="vrType">${s.role} 덱 · 잠김</div><div class="vrEnemy">${s.name}</div><div class="vrDesc">${s.desc}</div><div class="vrDoc">항해 기록 <b>${at(k)}</b>에서 해금 (앞으로 ${at(k) - xp})</div></div>`;
+      }).join('')}</div>`);
+    this.keys = open.map(([k]) => () => this.startEndless(k));
+    $('voyage').querySelectorAll('.vRoute[data-k]').forEach((el) => { el.onclick = () => this.startEndless(el.dataset.k); });
   },
   // 테스트용: 깊이 d 부터 (앞 구역을 깬 것처럼)
   startEndlessAt(d) {
-    this.startEndless();
+    this.startEndless('compass');
+    this.V.test = true;                       // 테스트 판: 항해 기록을 주지 않음
     const V = this.V, s = V.ship, E = DATA.endless, per = E.jumpsPerSector + 1;
     V.ch = Math.floor((d - 1) / per);
     V.jump = (d - 1) % per;
@@ -86,12 +111,15 @@ const Voyage = {
       if (d > best) localStorage.setItem('dr-best-depth', String(d));
     } catch (e) {}
     const mods = (V.ship.mods || []).map((k) => DATA.voyage.mods[k].name);
+    const A = Meta.award(V, d, true);
     this.show(`<div class="vStory"><div class="vsTitle win">항로 돌파</div>
       <div class="vsSub">구역 ${DATA.endless.winSector}곳의 주인을 모두 꺾었다 · 깊이 ${d}</div>
       <p style="animation-delay:0.3s">돌파 <b>${clears}</b>회째</p>
       <p style="animation-delay:0.5s">격침한 배 <b>${V.kills}</b>척 · 남은 선체 <b>${V.ship.hull}</b> / ${V.ship.maxHull} · 덱 ${V.ship.deck.length}장${mods.length ? ' · 개조 ' + mods.join(' · ') : ''}</p>
+      ${Meta.html(A)}
       <button class="vNext" style="animation-delay:0.8s">메인 화면 ▶ <small>Enter</small></button>
       <button class="vSkip vDeeper" style="animation-delay:1s">더 깊이 간다 <small>1</small></button></div>`, 'dark');
+    Meta.announce(A, this);
     V.won = true;
     this.cont = () => { this.hide(); this.V = null; goTitle(); };
     this.keys = [() => this.sectorRewards()];
@@ -277,7 +305,9 @@ const Voyage = {
     fadeTo(() => {
       this.hide();
       const s = this.V.ship;
-      start(enemyKey, { hull: s.hull, maxHull: s.maxHull, reactor: s.reactor, cooling: s.cooling, deck: s.deck.slice(), mods: (s.mods || []).slice() });
+      const cfg = { hull: s.hull, maxHull: s.maxHull, reactor: s.reactor, cooling: s.cooling, deck: s.deck.slice(), mods: (s.mods || []).slice() };
+      if (s.name) cfg.name = s.name;          // 고른 함선의 이름
+      start(enemyKey, cfg);
       B.voyage = true;
       B.introShown = true;
       B.fog = !!this.chapter().fog;
@@ -333,7 +363,7 @@ const Voyage = {
     while (ids.length < n && guard++ < 100) {
       let r = Math.random() * total, id = null;
       for (const [k, w] of Object.entries(pool)) { r -= w; if (r <= 0) { id = k; break; } }
-      if (id && !ids.includes(id)) ids.push(id);
+      if (id && !ids.includes(id) && !Meta.locked(id)) ids.push(id);   // 아직 해금하지 않은 카드는 나오지 않음
     }
     return ids;
   },
@@ -537,13 +567,16 @@ const Voyage = {
     try { best = +localStorage.getItem('dr-best-depth') || 0; } catch (e) {}
     const record = d > best;
     if (record) { best = d; try { localStorage.setItem('dr-best-depth', String(d)); } catch (e) {} }
-    this.show(`<div class="vStory"><div class="vsTitle lose">나침반 격침</div>
+    const A = Meta.award(V, d, false);
+    this.show(`<div class="vStory"><div class="vsTitle lose">${(V.ship.name || '나침반').replace(/^.*「|」.*$/g, '')} 격침</div>
       <div class="vsSub">깊이 ${d} · 구역 ${V.ch + 1}에서 항해가 끝났다</div>
       <p style="animation-delay:0.3s">${record ? '<b>새 기록!</b> ' : ''}최고 깊이 <b>${best}</b></p>
       <p style="animation-delay:0.5s">격침한 배 <b>${V.kills}</b>척 · 전투 <b>${V.battles}</b>번 · 덱 ${V.ship.deck.length}장 · 최대 선체 ${V.ship.maxHull}</p>
+      ${Meta.html(A)}
       <button class="vNext" style="animation-delay:0.8s">메인 화면 ▶ <small>Enter</small></button></div>`, 'dark');
     this.cont = () => { this.hide(); this.V = null; goTitle(); };
     $('voyage').querySelector('.vNext').onclick = () => this.next();
+    Meta.announce(A, this);
   },
 
   // 짧은 알림

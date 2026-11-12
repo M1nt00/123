@@ -160,6 +160,15 @@ body.measuring #field { cursor: none; }
 #turnSum .tsPerk { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); color: var(--dim); text-align: center; }
 #turnSum .tsPerk b { color: var(--fuel); }
 .vDeeper { margin-left: 12px; animation: tIn 0.6s both; }
+/* 항해 기록 · 해금 (끝난 화면) · 함선 고르기 */
+.vMeta { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); animation: tIn 0.6s 0.6s both; }
+.vMeta .mGain { color: var(--amber); font-weight: 900; }
+.vMeta .mBar { width: 260px; height: 6px; margin: 8px auto 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+.vMeta .mBar i { display: block; height: 100%; background: var(--amber); }
+.vMeta .mNew { color: var(--fuel); font-weight: 900; margin: 4px 0; }
+.vMeta small { color: var(--dim); }
+.vRoute.vLocked { opacity: 0.45; cursor: default; }
+.vRoute .vrDeck { margin-top: 6px; font-size: 11px; opacity: 0.8; }
 /* 적 의도 (계획 중 화면 위 가운데) */
 #intent { display: inline-block; margin-top: 8px; padding: 4px 12px; font-size: 12px; color: var(--dim); background: rgba(20,6,8,0.72); border: 1px solid rgba(255,90,95,0.45); border-radius: 6px; text-shadow: 0 1px 3px #000; }
 #intent.hidden { display: none; }
