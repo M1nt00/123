@@ -38,8 +38,26 @@ function makeShip(key, side, cfg) {
     regen: 0,            // 이번 턴 방어 단계에 더해질 재생 보호막
     dmgReduce: 0,        // 이번 턴 받는 피해 감소 (물러나기)
     pd: false,           // 이번 턴 점방어 가동
+    // 개조 (항해에서 고른 것): 전투 규칙을 바꾸는 perk 목록 { name, band/dmg, hot, moveFuel, readDraw }
+    perks: (s.mods || []).map((k) => DATA.voyage.mods[k]).filter((m) => m && m.perk).map((m) => Object.assign({ name: m.name }, m.perk)),
+    bonusFuel: 0,        // 다음 턴 연료 + (관성 축전기)
+    bonusDraw: 0,        // 다음 턴 손패 + (정밀 사격 통제)
+    perkFired: [],       // 이번 턴에 발동한 개조 이름
   };
 }
+
+// ── 개조 (perk) — 종류 · 숫자는 data/voyage.js의 mods ──
+// 무기 피해 배율: 쏘는 거리 · 내 열 조건이 맞는 개조를 모두 더함. 발동한 개조 이름은 notes(Set)에 담음
+function perkMult(s, d, notes) {
+  let m = 1;
+  for (const p of s.perks || []) {
+    if (p.band && d >= p.band[0] && d <= p.band[1]) { m += p.dmg; if (notes) notes.add(p.name); }
+    if (p.hot && s.heat >= p.hot.heat) { m += p.hot.dmg; if (notes) notes.add(p.name); }
+  }
+  return m;
+}
+// 거리에 따라 피해가 달라지는 무기인가 (어디서든 같은 무기는 '예측 적중'을 따지지 않음)
+function isBanded(card) { return !!card.dmg && card.dmg.length > 1; }
 
 // ── 상태 (버프 · 디버프) — 종류는 data/rules.js의 DATA.status ──
 function statusOf(s, key) { return s.st[key] || 0; }
@@ -101,8 +119,9 @@ function startTurn(B) {
   for (const s of [B.player, B.enemy]) {
     s.discard.push(...s.hand);
     s.hand = [];
-    drawCards(s, R().handSize);
-    s.fuel = s.reactor + s.carry;
+    drawCards(s, R().handSize + (s.bonusDraw || 0));
+    s.fuel = s.reactor + s.carry + (s.bonusFuel || 0);
+    s.bonusDraw = 0; s.bonusFuel = 0; s.perkFired = [];
     s.carry = 0;
     s.shield = 0;
     s.overkill = 0;
@@ -200,6 +219,12 @@ function weaponDmg(card, d, overdrive, targetMove) {
   return overdrive ? Math.round(base * (1 + R().overdriveBonus)) : base;
 }
 
+// 개조까지 반영한 무기 피해 (s = 쏘는 함선). 화면의 예상 피해도 이 함수를 씀
+function shotDmg(s, card, d, overdrive, targetMove, notes) {
+  const base = weaponDmg(card, d, overdrive, targetMove);
+  return base ? Math.round(base * perkMult(s, d, notes)) : 0;
+}
+
 // 거리 효율: 이 거리에서의 피해 ÷ 그 무기의 최대 피해 (예측 판정 표시용)
 function efficiency(card, d) {
   if (!card.dmg) return 1;
@@ -225,6 +250,13 @@ function resolveSteps(B) {
   const who = (s) => (s === P ? '나' : '적');
   // 연출용 이벤트: 각 단계가 끝나면 화면이 이것을 보고 애니메이션을 그림
   const ev = (e) => B.events.push(e);
+  // 개조 발동 알림 (턴마다 개조 하나에 한 번)
+  const perkNote = (s, name) => {
+    if (s.perkFired.includes(name)) return;
+    s.perkFired.push(name);
+    ev({ kind: 'perk', who: side(s), name });
+    B.log.push({ t: 'info', text: `${who(s)} 개조 발동 — ${name}` });
+  };
 
   // 전투 끝: 선체가 0이 되면 그 단계에서 끝 (같은 순간 둘 다 0이면 무승부)
   const over = () => {
@@ -273,8 +305,12 @@ function resolveSteps(B) {
       return;
     }
     const tm = isPre(c) ? 0 : other(s).lastMove;            // 상대가 이번 턴 움직인 만큼 (선제는 아직 안 움직임)
-    const dmg = weaponDmg(c, d, sums.get(s).od, tm);
-    const e = { kind: 'shot', from: side(s), card: it.id, dmg, eff: efficiency(c, d), shield: 0, hull: 0 };
+    const notes = new Set();
+    const dmg = shotDmg(s, c, d, sums.get(s).od, tm, notes);
+    const e = { kind: 'shot', from: side(s), card: it.id, dmg, eff: efficiency(c, d), banded: isBanded(c), shield: 0, hull: 0 };
+    if (dmg) for (const n of notes) perkNote(s, n);
+    // 정밀 사격 통제: 거리 무기를 제 거리에서 맞히면 다음 턴 손패 +
+    if (dmg && e.banded && e.eff >= R().readEff) for (const p of s.perks) if (p.readDraw) { s.bonusDraw = p.readDraw; perkNote(s, p.name); }
     if (dmg) Object.assign(e, hit(B, other(s), dmg, `${isPre(c) ? '선제 ' : ''}${c.name} ${d}km`, { ignoreShield: !!c.ignoreShield }));
     else if (c.evadedBy && Math.abs(tm) >= c.evadedBy) B.log.push({ t: 'miss', text: `${s === P ? '내' : '적'} ${c.name} 빗나감 (상대가 ${Math.abs(tm) * 100}km 기동)` });
     else B.log.push({ t: 'miss', text: `${s === P ? '내' : '적'} ${c.name} 사거리 밖 (${d}km)` });
@@ -353,6 +389,8 @@ function resolveSteps(B) {
       }
       B.xP = nP; B.xE = nE; B.distance = nE - nP;
       P.lastMove = pm; E.lastMove = em;
+      // 관성 축전기: 크게 움직이면 다음 턴 연료 +
+      for (const [s, m] of [[P, pm], [E, em]]) for (const p of s.perks) if (p.moveFuel && Math.abs(m) >= p.moveFuel.min) { s.bonusFuel = p.moveFuel.fuel; perkNote(s, p.name); }
       for (const [s, m] of [[P, pm], [E, em]]) { s.moveHist.push(m); if (s.moveHist.length > 4) s.moveHist.shift(); }
       ev({ kind: 'move', pm, em, before, after: B.distance, xP0, xE0, xP: B.xP, xE: B.xE });
       const desc = (m) => (m > 0 ? `${m * 100}km 전진` : m < 0 ? `${-m * 100}km 후진` : '정지');
@@ -398,7 +436,9 @@ function resolveSteps(B) {
             ev({ kind: 'torpArrive', from: side(t.owner), intercepted: true });
             return;
           }
-          const dmg = weaponDmg(DATA.cards.torpedo, d, t.overdrive);
+          const notes = new Set();
+          const dmg = shotDmg(t.owner, DATA.cards.torpedo, d, t.overdrive, undefined, notes);
+          if (dmg) for (const n of notes) perkNote(t.owner, n);
           const eff = efficiency(DATA.cards.torpedo, d);
           if (dmg) ev(Object.assign({ kind: 'torpArrive', from: side(t.owner), dmg, eff }, hit(B, target, dmg, `어뢰 도착 ${d}km`)));
           else { B.log.push({ t: 'miss', text: `어뢰 빗나감 (${d}km — 500~900km 밖)` }); ev({ kind: 'torpArrive', from: side(t.owner), dmg: 0, eff: 0 }); }

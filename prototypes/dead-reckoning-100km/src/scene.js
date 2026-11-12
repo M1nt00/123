@@ -270,7 +270,7 @@ const Scene = {
       this.streak(hx, hy, 120 + big * 220, '#FFD9A8', 0.4);
       if (e.hull >= 10) { this.slowmo(0.45); this.screenFlash(0.22 + big * 0.2, '#FFE3C0'); }
     }
-    if (label) this.effLabel(targetSide, e.eff);
+    if (label && e.banded !== false) this.effLabel(targetSide, e.eff);
   },
 
   // 예측 판정: 이 거리에서 무기가 얼마나 제 힘을 냈나

@@ -29,12 +29,12 @@ const Voyage = {
     const P = DATA.ships.player, VD = DATA.voyage;
     this.V = {
       endless: true, ch: 0, jump: 0,
-      ship: { hull: VD.playerHull, maxHull: VD.playerHull, reactor: P.reactor, cooling: P.cooling, deck: DATA.starterDeck.slice() },
+      ship: { hull: VD.playerHull, maxHull: VD.playerHull, reactor: P.reactor, cooling: P.cooling, deck: DATA.starterDeck.slice(), mods: [] },
       dist: VD.startDistance, err: 0.8, kills: 0, battles: 0,
       usedEvents: [], routes: null,
     };
     this.story('끝없는 항해', '정적 이후 — 끝이 없는 추측항법',
-      ['항법 신호가 꺼진 성계.', '나침반은 좌표 없이 점프를 거듭한다.', '깊이 들어갈수록 적은 강해진다.', '얼마나 멀리 갈 수 있을까.'],
+      ['항법 신호가 꺼진 성계.', '나침반은 좌표 없이 점프를 거듭한다.', '깊이 들어갈수록 적은 강해진다.', DATA.endless.winSector ? `구역 ${DATA.endless.winSector}곳의 주인을 모두 꺾으면 — 항로 돌파.` : '얼마나 멀리 갈 수 있을까.'],
       () => this.say('항해장 세라입니다. 구역마다 점프 네 번, 그리고 그 구역의 주인이 기다립니다. …가 보죠.', () => this.routes()));
   },
   // 테스트용: 깊이 d 부터 (앞 구역을 깬 것처럼)
@@ -60,7 +60,7 @@ const Voyage = {
     const boss = E.bosses[n % E.bosses.length];
     const story = DATA.voyage.chapters.find((c) => c.flagship === boss) || {};
     return {
-      name: `구역 ${n + 1} · ${E.themeNames[ti]}`, sub: `깊이 ${d}`,
+      name: `구역 ${n + 1}${E.winSector && !V.won ? ' / ' + E.winSector : ''} · ${E.themeNames[ti]}`, sub: `깊이 ${d}`,
       enemies, elites: E.elites, flagship: boss,
       events: Object.keys(DATA.voyage.events),
       theme: E.themes[ti], fog: E.themes[ti] === 'fog',
@@ -71,6 +71,34 @@ const Voyage = {
   },
   // 보스를 잡은 뒤: 수리 · 카드 · 개조 → 다음 구역
   sectorEnd() {
+    const V = this.V, E = DATA.endless;
+    if (E.winSector && V.ch + 1 === E.winSector && !V.won) return this.victory();
+    this.sectorRewards();
+  },
+  // 항로 돌파 (승리): 마지막 구역의 보스를 잡았다. 여기서 끝내거나, 보상을 받고 더 깊이 갈 수 있다
+  victory() {
+    const V = this.V, d = this.depth();
+    let clears = 1, best = 0;
+    try {
+      clears = (+localStorage.getItem('dr-clears') || 0) + 1;
+      localStorage.setItem('dr-clears', String(clears));
+      best = +localStorage.getItem('dr-best-depth') || 0;
+      if (d > best) localStorage.setItem('dr-best-depth', String(d));
+    } catch (e) {}
+    const mods = (V.ship.mods || []).map((k) => DATA.voyage.mods[k].name);
+    this.show(`<div class="vStory"><div class="vsTitle win">항로 돌파</div>
+      <div class="vsSub">구역 ${DATA.endless.winSector}곳의 주인을 모두 꺾었다 · 깊이 ${d}</div>
+      <p style="animation-delay:0.3s">돌파 <b>${clears}</b>회째</p>
+      <p style="animation-delay:0.5s">격침한 배 <b>${V.kills}</b>척 · 남은 선체 <b>${V.ship.hull}</b> / ${V.ship.maxHull} · 덱 ${V.ship.deck.length}장${mods.length ? ' · 개조 ' + mods.join(' · ') : ''}</p>
+      <button class="vNext" style="animation-delay:0.8s">메인 화면 ▶ <small>Enter</small></button>
+      <button class="vSkip vDeeper" style="animation-delay:1s">더 깊이 간다 <small>1</small></button></div>`, 'dark');
+    V.won = true;
+    this.cont = () => { this.hide(); this.V = null; goTitle(); };
+    this.keys = [() => this.sectorRewards()];
+    $('voyage').querySelector('.vNext').onclick = () => this.next();
+    $('voyage').querySelector('.vDeeper').onclick = () => { this.cont = null; this.sectorRewards(); };
+  },
+  sectorRewards() {
     const V = this.V, E = DATA.endless;
     this.repair(E.bossRepair, `구역 ${V.ch + 1} 돌파 — 수리`, () =>
       this.cardPick('보스 보상 — 카드 한 장', () =>
@@ -134,6 +162,7 @@ const Voyage = {
       <span>반응로 <b>${s.reactor}</b></span>
       <span>냉각 <b>${s.cooling}</b></span>
       <span>격침 <b>${this.V.kills}</b></span>
+      ${(s.mods || []).length ? `<span>개조 <b>${s.mods.map((k) => DATA.voyage.mods[k].name).join(' · ')}</b></span>` : ''}
     </div>`;
   },
   headHTML(extra = '') {
@@ -248,7 +277,7 @@ const Voyage = {
     fadeTo(() => {
       this.hide();
       const s = this.V.ship;
-      start(enemyKey, { hull: s.hull, maxHull: s.maxHull, reactor: s.reactor, cooling: s.cooling, deck: s.deck.slice() });
+      start(enemyKey, { hull: s.hull, maxHull: s.maxHull, reactor: s.reactor, cooling: s.cooling, deck: s.deck.slice(), mods: (s.mods || []).slice() });
       B.voyage = true;
       B.introShown = true;
       B.fog = !!this.chapter().fog;
@@ -341,12 +370,14 @@ const Voyage = {
     $('voyage').querySelector('.vNext').onclick = () => this.next();
   },
   modPick(title, done, allowRare = false) {
-    const all = Object.entries(DATA.voyage.mods).filter(([, m]) => allowRare || !m.rare);
-    const opts = all.sort(() => Math.random() - 0.5).slice(0, 2);
+    const ship = this.V.ship, own = ship.mods || (ship.mods = []);
+    // 전투 방식을 바꾸는 개조(perk)는 한 번만. 이미 가진 것은 빼고 보여 줌
+    const all = Object.entries(DATA.voyage.mods).filter(([k, m]) => (allowRare || !m.rare) && !(m.perk && own.includes(k)));
+    const opts = all.sort(() => Math.random() - 0.5).slice(0, DATA.voyage.modChoices || 2);
     this.show(`${this.headHTML()}<div class="vTitle">${title}</div>
       <div class="vRoutes">${opts.map(([k, m], i) => `<div class="vRoute t-dock" data-i="${i}" style="animation-delay:${i * 0.08}s">
-        <div class="vrKey">${i + 1}</div><div class="vrType">개조</div><div class="vrEnemy">${m.name}</div><div class="vrDesc">${m.desc}</div></div>`).join('')}</div>`);
-    const pick = (i) => { opts[i][1].apply(this.V.ship); this.toast(`${opts[i][1].name} 완료`); done(); };
+        <div class="vrKey">${i + 1}</div><div class="vrType">개조${m.build ? ' · ' + m.build + ' 덱' : ''}</div><div class="vrEnemy">${m.name}</div><div class="vrDesc">${m.desc}</div></div>`).join('')}</div>`);
+    const pick = (i) => { const [k, m] = opts[i]; if (m.apply) m.apply(ship); if (m.perk) own.push(k); this.toast(`${m.name} 완료`); done(); };
     this.keys = opts.map((o, i) => () => pick(i));
     $('voyage').querySelectorAll('.vRoute').forEach((el, i) => { el.onclick = () => pick(i); });
   },

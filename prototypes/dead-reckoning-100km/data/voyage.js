@@ -28,7 +28,20 @@ DATA.voyage = {
     cooler: { name: '냉각기 강화', desc: '매 턴 냉각 +3', apply: (s) => { s.cooling += 3; } },
     armor: { name: '장갑 보강', desc: '최대 선체 +20 (선체도 +20)', apply: (s) => { s.maxHull += 20; s.hull += 20; } },
     reactor: { name: '반응로 과급', desc: '매 턴 연료 +1', rare: true, apply: (s) => { s.reactor += 1; } },
+    // ── 전투 방식을 바꾸는 개조 (perk · 한 번만 고를 수 있음 · 규칙은 src/battle.js의 '개조' 부분) ──
+    //   band [가까운 쪽, 먼 쪽] + dmg : 그 거리(km)에서 쏘면 무기 피해 × (1 + dmg)
+    //   hot { heat, dmg }            : 내 열이 heat 이상이면 무기 피해 × (1 + dmg)
+    //   moveFuel { min, fuel }       : 한 턴에 min × 100km 이상 움직이면 다음 턴 연료 + fuel
+    //   readDraw n                   : 거리 무기를 효율 readEff(data/rules.js) 이상으로 맞히면 다음 턴 손패 + n
+    //   build = 어떤 덱에 어울리는지 (고르는 화면에 표시)
+    closeFuze: { name: '근접 신관', build: '근거리', desc: '300km 이내에서 무기 피해 +30%', perk: { band: [0, 300], dmg: 0.3 } },
+    midLens: { name: '중거리 집속 렌즈', build: '중거리', desc: '500~900km에서 무기 피해 +25%', perk: { band: [500, 900], dmg: 0.25 } },
+    longScope: { name: '장거리 조준경', build: '원거리', desc: '1,200km 이상에서 무기 피해 +30%', perk: { band: [1200, 2000], dmg: 0.3 } },
+    inertiaCap: { name: '관성 축전기', build: '기동', desc: '한 턴에 300km 이상 움직이면 다음 턴 연료 +1', perk: { moveFuel: { min: 3, fuel: 1 } } },
+    heatRecycle: { name: '열 재활용', build: '과열', desc: '내 열이 50 이상이면 무기 피해 +25%', perk: { hot: { heat: 50, dmg: 0.25 } } },
+    fireControl: { name: '정밀 사격 통제', build: '읽기', desc: '거리 무기를 효율 90% 이상으로 맞히면 다음 턴 카드 1장 더', perk: { readDraw: 1 } },
   },
+  modChoices: 3,           // 개조를 고를 때 보여 주는 수
 
   // 목적지 이름 (항로 카드에 무작위로)
   places: ['부표 B-7 잔해', '끊어진 수송로', '얼어붙은 연료 구름', '표류 화물선 무덤', '꺼진 등대 부표', '금속 파편대', '침묵하는 중계소', '고철단 사냥터'],
@@ -219,6 +232,7 @@ Object.assign(DATA.ships, {
 // ─────────────────────────────────────────────
 DATA.endless = {
   jumpsPerSector: 4,                 // 구역마다 일반 점프 수 (그다음 보스)
+  winSector: 3,                      // 이 구역의 보스까지 잡으면 '항로 돌파' (승리). 그 뒤는 원하면 끝없이. 0이면 승리 없음
   // 적 위협도
   tier1: ['scav', 'torpBoat'],       // 약한 적
   tier2: ['vex', 'allyPatrol'],      // 보통 적

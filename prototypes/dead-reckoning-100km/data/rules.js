@@ -27,6 +27,11 @@ DATA.rules = {
   meltdownHeat: 100,     // 멜트다운: 선체 피해 + 다음 턴은 기본 엔진(이동)만
   meltdownDamage: 30,
   meltdownResetHeat: 40, // 멜트다운 턴이 끝나면 (얼마나 움직였든) 열 40
+  // 공개 연출 속도: 위 막대의 [속도] 버튼으로 바꿈 (1 = 원래 속도). revealSpeedDefault = 처음에 고르는 칸 (0부터)
+  revealSpeeds: [1, 2, 3],
+  revealSpeedDefault: 1,
+  // 개조 '정밀 사격 통제': 거리 무기의 효율이 이 값 이상이면 '읽었다'로 침
+  readEff: 0.9,
 };
 
 // 상태 (버프 · 디버프) — 기획서 v0.8 11번

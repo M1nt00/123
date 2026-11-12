@@ -157,6 +157,9 @@ body.measuring #field { cursor: none; }
 #turnSum .me { color: var(--me); } #turnSum .foe { color: var(--foe); }
 #turnSum .tsRow { display: grid; grid-template-columns: auto 34px auto 34px; gap: 4px 10px; align-items: center; color: var(--dim); }
 #turnSum .tsRow b { font-family: var(--mono); font-size: 14px; text-align: right; }
+#turnSum .tsPerk { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); color: var(--dim); text-align: center; }
+#turnSum .tsPerk b { color: var(--fuel); }
+.vDeeper { margin-left: 12px; animation: tIn 0.6s both; }
 @keyframes tsIn { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
 /* ── 동시 공개: 화면 한가운데 크게 → 위로 물러남 ── */
@@ -696,3 +699,6 @@ body.resolving #skipHint { opacity: 1; }
 .sbBox .ghostBtn { color: var(--text) !important; }
 .sbBox .sbRow button.sbGo { background: var(--amber) !important; color: #1A1204 !important; border-color: var(--amber) !important; padding: 8px 24px !important; font-size: 14px !important; }
 .sbBox .sbRow button.sbGo:disabled { opacity: 0.4; }
+
+/* 손패가 6장 이상이면 (정밀 사격 통제 · 드로우) 살짝 겹쳐서 양쪽 더미를 가리지 않게 */
+#hand:has(.card:nth-child(6)) .card + .card { margin-left: -24px; }

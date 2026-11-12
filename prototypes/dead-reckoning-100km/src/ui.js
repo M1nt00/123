@@ -38,7 +38,7 @@ function dmgNowHTML(c) {
   const P = B.player, sum = planSummary(P, P.plan);
   const od = sum.od;
   const now = B.distance, after = clamp(now - sum.move * 100, 0, DATA.rules.maxDistance);
-  const num = (d) => { const v = weaponDmg(c, d, od); return `<b class="${v ? '' : 'zero'}${od && v ? ' od' : ''}">${v}</b>`; };
+  const num = (d) => { const v = shotDmg(B.player, c, d, od); return `<b class="${v ? '' : 'zero'}${od && v ? ' od' : ''}">${v}</b>`; };
   if (c.torpedo) return `<div class="cnow">다음 턴 도착 · <span>그때 500~900km면</span> ${num(700)}</div>`;
   if (c.charge) return `<div class="cnow">${c.charge.turns}턴 뒤 <b>${c.charge.dmg}</b> <span>거리 무관</span></div>`;
   if (c.ignoreShield) return `<div class="cnow">지금 ${fmtM(now)} ${num(now)} <span>· 0km에서만 · 관통</span></div>`;
@@ -54,7 +54,7 @@ function expectedDmg(P) {
   for (const it of P.plan.items) {
     const c = DATA.cards[it.id];
     if (c.type !== 'weapon') continue;
-    if (c.torpedo) torps++; else if (!c.charge) t += weaponDmg(c, isPre(c) ? B.distance : d, sum.od);   // 선제: 기동 전 거리
+    if (c.torpedo) torps++; else if (!c.charge) t += shotDmg(P, c, isPre(c) ? B.distance : d, sum.od);   // 선제: 기동 전 거리
   }
   return { dmg: t, torps, d };
 }
@@ -366,7 +366,7 @@ function detailHTML(c, codex) {
       return `<tr class="${here ? 'now' : ''} ${aft ? 'after' : ''}"><td>${km(a, b)}</td><td><b>${v}</b></td><td>${here ? '◀ 지금' : ''}${aft ? '◀ 이동 후' : ''}</td></tr>`;
     }).join('');
     body += `<div class="dsub">${c.torpedo ? '거리별 피해 — 다음 턴 도착했을 때의 거리' : '거리별 피해'}</div><table class="dtable">${rows}</table>${miniBar(c)}`;
-    if (!c.torpedo && !codex) body += `<div class="dnow">지금 ${fmtM(now)} → <b>${weaponDmg(c, now, sum.od)}</b>${after !== now ? ` · 이동 후 ${fmtM(after)} → <b>${weaponDmg(c, after, sum.od)}</b>` : ''} <small>(적이 가만히 있다면)</small></div>`;
+    if (!c.torpedo && !codex) body += `<div class="dnow">지금 ${fmtM(now)} → <b>${shotDmg(B.player, c, now, sum.od)}</b>${after !== now ? ` · 이동 후 ${fmtM(after)} → <b>${shotDmg(B.player, c, after, sum.od)}</b>` : ''} <small>(적이 가만히 있다면)</small></div>`;
   }
   const notes = [];
   if (isPre(c)) notes.push(c.type === 'weapon' ? '선제 — 기동보다 먼저 쏜다. 상대가 움직이기 전의 거리로 판정.' : '선제 — 기동보다 먼저 켜진다. 기동 단계의 피해부터 막는다.');
@@ -506,11 +506,15 @@ function phaseCardHTML(x, i, big) {
   return `<div class="rcard front" data-type="${c.type}" ${delay}><span class="ri">${iconSVG(it.id, 46)}</span>${c.name}<small>${extra}</small></div>`;
 }
 // 넘기기 (클릭 · Space): 지금 기다림을 바로 끝내고, 지금 단계의 연출은 빨리 감기
+// 공개 연출 속도: 위 막대의 [속도] 버튼 (칸 = data/rules.js의 revealSpeeds, 고른 칸은 localStorage 'dr-speed')
+let speedIdx = DATA.rules.revealSpeedDefault || 0;
+try { const v = localStorage.getItem('dr-speed'); if (v !== null && DATA.rules.revealSpeeds[+v]) speedIdx = +v; } catch (e) {}
+const pace = () => DATA.rules.revealSpeeds[speedIdx] || 1;
 let skipFn = null;
 function waitS(ms) {
   return new Promise((res) => {
     const done = () => { clearTimeout(t); if (skipFn === done) skipFn = null; res(); };
-    const t = setTimeout(done, ms);
+    const t = setTimeout(done, ms / pace());
     skipFn = done;
   });
 }
@@ -556,11 +560,14 @@ async function revealPhase(step, mine, theirs) {
 // ── 턴 요약: 이번 턴 누가 더 잘 읽었나 ─────────
 function turnSummary(events, turn) {
   const st = { player: { dealt: 0, hit: 0, shots: 0 }, enemy: { dealt: 0, hit: 0, shots: 0 } };
+  const perks = [];   // 이번 턴에 발동한 내 개조
   for (const e of events) {
+    if (e.kind === 'perk') { if (e.who === 'player' && !perks.includes(e.name)) perks.push(e.name); continue; }
     if (e.kind !== 'shot' && e.kind !== 'torpArrive') continue;
     if (e.intercepted) continue;
     const s = st[e.from];
     s.dealt += e.dmg || 0;
+    if (e.banded === false) continue;   // 어디서든 같은 무기는 예측으로 세지 않음
     s.shots++;
     if ((e.eff || 0) >= 0.9) s.hit++;
   }
@@ -569,7 +576,8 @@ function turnSummary(events, turn) {
   const verdict = p.dealt > en.dealt ? '<em class="me">이번 턴 우세</em>' : p.dealt < en.dealt ? '<em class="foe">이번 턴 열세</em>' : '<em>팽팽</em>';
   $('turnSum').innerHTML = `<div class="tsHead">턴 ${turn} 결과 · ${verdict}</div>
     <div class="tsRow"><span>준 피해</span><b class="me">${p.dealt}</b><span>받은 피해</span><b class="foe">${en.dealt}</b></div>
-    <div class="tsRow"><span>내 예측 적중</span><b class="me">${read(p)}</b><span>적 예측 적중</span><b class="foe">${read(en)}</b></div>`;
+    <div class="tsRow"><span>내 예측 적중</span><b class="me">${read(p)}</b><span>적 예측 적중</span><b class="foe">${read(en)}</b></div>
+    ${perks.length ? `<div class="tsPerk">개조 발동 · <b>${perks.join(' · ')}</b></div>` : ''}`;
   $('turnSum').classList.remove('hidden');
 }
 
@@ -600,8 +608,8 @@ function aimInfo(id, hand) {
   const sum = planSummary(P, plan);
   const d = isPre(c) ? B.distance : clamp(B.distance - sum.move * 100, 0, DATA.rules.maxDistance);   // 선제: 기동 전 거리
   if (c.charge) return { text: `${c.name} → ${c.charge.turns}턴 뒤 ${c.charge.dmg} 피해${c.charge.enemyHeat ? ` · 상대 열 +${c.charge.enemyHeat}` : ''}`, sub: `거리 무관 · ${c.charge.turns}턴 동안 매 턴 열 +${c.charge.heat} · 최대 연료 −${c.charge.fuel}`, color: '#FFC24A' };
-  if (c.torpedo) return { text: `어뢰 발사 · 다음 턴 도착`, sub: `그때 500~900km면 ${weaponDmg(c, 700, sum.od)} · 지금 ${fmtM(d)}`, color: '#FFB547' };
-  const dmg = weaponDmg(c, d, sum.od), eff = efficiency(c, d);
+  if (c.torpedo) return { text: `어뢰 발사 · 다음 턴 도착`, sub: `그때 500~900km면 ${shotDmg(P, c, 700, sum.od)} · 지금 ${fmtM(d)}`, color: '#FFB547' };
+  const dmg = shotDmg(P, c, d, sum.od), eff = efficiency(c, d);
   const tag = eff >= 0.9 ? '강한 거리' : eff >= 0.6 ? '쓸 만한 거리' : eff > 0 ? '약한 거리' : '사거리 밖';
   const color = eff >= 0.9 ? '#7CFF9B' : eff >= 0.6 ? '#FFD166' : eff > 0 ? '#FFB547' : '#FF5A5F';
   return { text: `${c.name} → ${dmg} 피해 · ${tag}`, sub: isPre(c) ? `선제 — 기동 전 거리 ${fmtM(d)}로 판정` : `${sum.move ? '내 이동 후 ' : ''}${fmtM(d)} (적이 가만히 있다면)`, color };
@@ -768,13 +776,13 @@ async function decide() {
   const steps = resolveSteps(B);
   const empty = (st) => st.reveal && !phaseItems(st, B.player).length && !phaseItems(st, B.enemy).length;
   const runStep = async (step) => {
-    Scene.boost = 1;
+    Scene.boost = pace();
     stepName = step.name;
     B.events = [];
     step.run();
     renderHud();
     allEv.push(...B.events);
-    await Scene.play(B.events);
+    if (B.events.length) await Scene.play(B.events);   // 아무 일도 없는 단계는 기다리지 않음
     render();
   };
   for (let i = 0; i < steps.length && B.phase !== 'over'; i++) {
@@ -793,7 +801,7 @@ async function decide() {
     if (step.reveal) await revealPhase(step, phaseItems(step, B.player), phaseItems(step, B.enemy));
     await runStep(step);
   }
-  Scene.boost = 1;
+  Scene.boost = pace();
   stepName = null;
   $('reveal').classList.add('hidden');
   Scene.cine = 0;
@@ -802,7 +810,7 @@ async function decide() {
     if (B.winner !== 'player') Scene.destroy('player');
     if (B.winner !== 'enemy') Scene.destroy('enemy');
     await waitS(2200);
-    Scene.boost = 1;
+    Scene.boost = pace();
     resolving = false;
     render();
     if (B.voyage) Voyage.battleEnd(B);
@@ -937,6 +945,15 @@ document.addEventListener('keydown', (e) => {
 });
 $('helpBtn').onclick = showHelp;
 $('logBtn').onclick = toggleLog;
+// 속도 버튼: 공개 연출 속도를 차례로 바꿈
+function speedLabel() { $('spdBtn').textContent = `속도 ×${pace()}`; }
+$('spdBtn').onclick = () => {
+  speedIdx = (speedIdx + 1) % DATA.rules.revealSpeeds.length;
+  try { localStorage.setItem('dr-speed', String(speedIdx)); } catch (e) {}
+  speedLabel();
+  if (resolving && Scene.boost < 8) Scene.boost = pace();
+};
+speedLabel();
 
 // 전투 시작. enemyKey = 적 함선, playerCfg = 항해 중인 내 함선 상태 (없으면 기본)
 function start(enemyKey = 'vex', playerCfg = null) {
@@ -1083,7 +1100,9 @@ function showTitle() {
   Scene.mode = 'title';
   Scene.cine = 0; Scene.camReset(1);
   let best = 0; try { best = +localStorage.getItem('dr-best-depth') || 0; } catch (e) {}
-  $('bestDepth').textContent = best ? `최고 깊이 ${best}` : '로그라이트 · 격침될 때까지';
+  let clears = 0; try { clears = +localStorage.getItem('dr-clears') || 0; } catch (e) {}
+  const goal = DATA.endless.winSector ? `구역 ${DATA.endless.winSector}곳을 돌파하라` : '로그라이트 · 격침될 때까지';
+  $('bestDepth').textContent = best ? `${clears ? `돌파 ${clears}회 · ` : ''}최고 깊이 ${best}` : goal;
   titleSel = 0; titleMark();
 }
 function hideTitle() {
